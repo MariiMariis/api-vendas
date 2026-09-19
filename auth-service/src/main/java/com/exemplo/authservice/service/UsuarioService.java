@@ -1,5 +1,6 @@
 package com.exemplo.authservice.service;
 
+import com.exemplo.authservice.dto.LoginRequest;
 import com.exemplo.authservice.dto.UsuarioRequest;
 import com.exemplo.authservice.model.Usuario;
 import com.exemplo.authservice.repository.UsuarioRepository;
@@ -29,4 +30,16 @@ public class UsuarioService {
 
         return usuarioRepository.save(usuario);
     }
+
+    public Usuario autenticar(LoginRequest request){
+        Usuario usuario = this.usuarioRepository.findByEmail(request.getEmail())
+            .orElseThrow(()-> new ResponseStatusException(HttpStatus.UNAUTHORIZED,"E-mail ou senha inválidos"));
+    
+            if(!passwordEncoder.matches(request.getSenha(),usuario.getSenha())){
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,"E-mail ou senha inválidos");
+            }
+
+            return usuario;
+    
+        }
 }
