@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="B - Microsservicos + gateway" type="CompoundRunConfigurationType">
+    <toRun name="3 - auth-service" type="Application" />
+    <toRun name="4 - produtos-service" type="Application" />
+    <toRun name="5 - clientes-service" type="Application" />
+    <toRun name="6 - vendas-service" type="Application" />
+    <toRun name="7 - gateway" type="Application" />
+    <method v="2" />
+  </configuration>
+</component>

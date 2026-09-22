@@ -1,32 +1,95 @@
 package com.example.vendas_service.models;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
 
-@Entity
-@Table(name = "vendas")
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
+import java.math.BigDecimal;
+import java.time.Instant;
+
+@Table("venda")
 public class Venda {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column( nullable = false)
     private Long idProduto;
 
-    @Column(nullable = false)
+    private String nomeProduto;
+
     private Integer quantidade;
 
-    @Column(nullable = false)
-    private Double valorProduto;
+    private BigDecimal valorUnitario;
+
+    private BigDecimal valorTotal;
+
+    private String usuario;
+
+    private Instant dataVenda;
+
+    public Venda() {
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getIdProduto() {
+        return idProduto;
+    }
+
+    public void setIdProduto(Long idProduto) {
+        this.idProduto = idProduto;
+    }
+
+    public String getNomeProduto() {
+        return nomeProduto;
+    }
+
+    public void setNomeProduto(String nomeProduto) {
+        this.nomeProduto = nomeProduto;
+    }
+
+    public Integer getQuantidade() {
+        return quantidade;
+    }
+
+    public void setQuantidade(Integer quantidade) {
+        this.quantidade = quantidade;
+    }
+
+    public BigDecimal getValorUnitario() {
+        return valorUnitario;
+    }
+
+    public void setValorUnitario(BigDecimal valorUnitario) {
+        this.valorUnitario = valorUnitario;
+    }
+
+    public BigDecimal getValorTotal() {
+        return valorTotal;
+    }
+
+    public void setValorTotal(BigDecimal valorTotal) {
+        this.valorTotal = valorTotal;
+    }
+
+    public String getUsuario() {
+        return usuario;
+    }
+
+    public void setUsuario(String usuario) {
+        this.usuario = usuario;
+    }
+
+    public Instant getDataVenda() {
+        return dataVenda;
+    }
+
+    public void setDataVenda(Instant dataVenda) {
+        this.dataVenda = dataVenda;
+    }
 }

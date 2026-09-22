@@ -1,9 +1,87 @@
 services:
 
+  # --- Bancos de dados (um PostgreSQL separado por microsservico) ---
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: postgres-auth
+    environment:
+      - POSTGRES_DB=authdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d authdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - microservicos-net
+
+  postgres-produtos:
+    image: postgres:16-alpine
+    container_name: postgres-produtos
+    environment:
+      - POSTGRES_DB=produtosdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - produtos-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d produtosdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - microservicos-net
+
+  postgres-clientes:
+    image: postgres:16-alpine
+    container_name: postgres-clientes
+    environment:
+      - POSTGRES_DB=clientesdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - clientes-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d clientesdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - microservicos-net
+
+  postgres-vendas:
+    image: postgres:16-alpine
+    container_name: postgres-vendas
+    environment:
+      - POSTGRES_DB=vendasdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5436:5432"
+    volumes:
+      - vendas-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vendasdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - microservicos-net
+
   # --- Service Discovery ---
   eureka-server:
     build: ./eureka-server        # usa o Dockerfile dessa pasta pra construir a imagem
     container_name: eureka-server # nome fixo do container (e nome que os outros usam na rede)
+    profiles: ["app"]
     ports:
       - "8761:8761"                # porta_da_maquina:porta_do_container -> localhost:8761
     networks:
@@ -13,6 +91,7 @@ services:
   config-server:
     build: ./config-server
     container_name: config-server
+    profiles: ["app"]
     ports:
       - "8888:8888"
     volumes:
@@ -30,16 +109,38 @@ services:
     networks:
       - microservicos-net
 
+  # --- Servico de autenticacao (JWT + Spring Data JDBC) ---
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    profiles: ["app"]
+    restart: on-failure
+    depends_on:
+      - eureka-server
+      - config-server
+    environment:
+      - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
+      # ativa o profile "docker", que faz o config-server servir também
+      # auth-service-docker.properties (sobrescreve a URL do Eureka)
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    ports:
+      - "8084:8084"
+    networks:
+      - microservicos-net
+
   # --- Serviço de produtos ---
   produtos-service:
     build: ./produtos-service
     container_name: produtos-service
+    profiles: ["app"]
+    restart: on-failure
     depends_on:                    # só cria este container depois dos dois abaixo
       - eureka-server               # (não garante que já estejam "prontos", só criados)
       - config-server
     environment:
       # troca "localhost" por "config-server", o nome do serviço na rede Docker
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
       # ativa o profile "docker", que faz o config-server servir também
       # produtos-service-docker.properties (sobrescreve a URL do Eureka)
       - SPRING_PROFILES_ACTIVE=docker
@@ -54,11 +155,13 @@ services:
   vendas-service:
     build: ./vendas-service
     container_name: vendas-service
+    profiles: ["app"]
+    restart: on-failure
     depends_on:
       - eureka-server
       - config-server
     environment:
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
       # ativa o profile "docker", que faz o config-server servir também
       # vendas-service-docker.properties (sobrescreve a URL do Eureka)
       - SPRING_PROFILES_ACTIVE=docker
@@ -67,15 +170,17 @@ services:
       - "8082:8082"
     networks:
       - microservicos-net
-  
+
   clientes-service:
     build: ./clientes-service
     container_name: clientes-service
+    profiles: ["app"]
+    restart: on-failure
     depends_on:
       - eureka-server
       - config-server
     environment:
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
+      - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
       # ativa o profile "docker", que faz o config-server servir também
       # vendas-service-docker.properties (sobrescreve a URL do Eureka)
       - SPRING_PROFILES_ACTIVE=docker
@@ -85,28 +190,12 @@ services:
     networks:
       - microservicos-net
 
-  # --- Servico de cadastro de usuarios ---
-  auth-service:
-    build: ./auth-service
-    container_name: auth-service
-    depends_on:
-      - eureka-server
-      - config-server
-    environment:
-      - SPRING_CONFIG_IMPORT=optional:configserver:http://config-server:8888
-      # ativa o profile "docker", que faz o config-server servir também
-      # auth-service-docker.properties (sobrescreve a URL do Eureka)
-      - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-    ports:
-      - "8084:8084"
-    networks:
-      - microservicos-net
-
   # --- API Gateway (porta de entrada única, roteia por nome de serviço no Eureka) ---
   gateway:
     build: ./gateway
     container_name: gateway
+    profiles: ["app"]
+    restart: on-failure
     depends_on:
       - eureka-server               # gateway só precisa do eureka pra descobrir os serviços
     environment:
@@ -115,6 +204,12 @@ services:
       - "8085:8085"
     networks:
       - microservicos-net
+
+volumes:
+  auth-data:
+  produtos-data:
+  clientes-data:
+  vendas-data:
 
 # Rede virtual que conecta todos os containers acima. É o que permite
 # um container chamar o outro pelo nome (ex: http://eureka-server:8761)

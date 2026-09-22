@@ -1,13 +1,16 @@
 package com.example.gateway.filter;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -21,11 +24,15 @@ import java.util.List;
 @Component
 public class TokenFilter implements GlobalFilter, Ordered {
 
+    public static final String CABECALHO_USUARIO = "X-Usuario-Email";
+
     // As unicas rotas que passam sem token. Sem elas ninguem consegue se
     // cadastrar nem pegar o primeiro token -- o sistema tranca por fora.
     private static final List<String> LIVRES = List.of(
-            "/auth-service/usuarios/login",
-            "/auth-service/usuarios");
+            "/api/auth/login",
+            "/api/auth/refresh",
+            "/api/auth/register",
+            "/api/auth/logout");
 
     private final SecretKey chave;
 
@@ -51,29 +58,47 @@ public class TokenFilter implements GlobalFilter, Ordered {
 
         // Nao mandou cabecalho, ou mandou em outro formato: nem olha o token.
         if (cabecalho == null || !cabecalho.startsWith("Bearer ")) {
-            return recusar(exchange);
+            return recusar(exchange, "Token de acesso ausente");
         }
 
+        Claims claims;
         try {
             // substring(7) corta o "Bearer " (7 letras) e deixa so' o token.
             // parseSignedClaims confere a assinatura com a nossa chave e
             // estoura excecao se o token for falso ou tiver sido alterado.
-            Jwts.parser()
+            claims = Jwts.parser()
                     .verifyWith(chave)
+                    .requireIssuer("auth-service")
                     .build()
-                    .parseSignedClaims(cabecalho.substring(7));
+                    .parseSignedClaims(cabecalho.substring(7))
+                    .getPayload();
         } catch (Exception e) {
-            return recusar(exchange);
+            return recusar(exchange, "Token invalido ou expirado");
         }
 
+        if (!"access".equals(claims.get("tipo", String.class))) {
+            return recusar(exchange, "Token informado nao e um access token");
+        }
+
+        ServerWebExchange autenticado = exchange.mutate()
+                .request(exchange.getRequest().mutate()
+                        .headers(headers -> headers.set(CABECALHO_USUARIO, claims.getSubject()))
+                        .build())
+                .build();
+
         // Token conferido: a requisicao segue para o servico de destino.
-        return chain.filter(exchange);
+        return chain.filter(autenticado);
     }
 
     // Responde 401 e encerra ali: setComplete fecha a resposta sem chamar o servico.
-    private Mono<Void> recusar(ServerWebExchange exchange) {
-        exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
-        return exchange.getResponse().setComplete();
+    private Mono<Void> recusar(ServerWebExchange exchange, String mensagem) {
+        var resposta = exchange.getResponse();
+        resposta.setStatusCode(HttpStatus.UNAUTHORIZED);
+        resposta.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        resposta.getHeaders().set(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+        String corpo = "{\"status\":401,\"erro\":\"Unauthorized\",\"mensagem\":\"" + mensagem + "\"}";
+        DataBuffer buffer = resposta.bufferFactory().wrap(corpo.getBytes(StandardCharsets.UTF_8));
+        return resposta.writeWith(Mono.just(buffer));
     }
 
     // A ordem importa: -1 faz este filtro rodar ANTES do roteamento, enquanto

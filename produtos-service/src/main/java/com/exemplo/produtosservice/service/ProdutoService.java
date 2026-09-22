@@ -2,10 +2,13 @@ package com.exemplo.produtosservice.service;
 
 import com.exemplo.produtosservice.model.Produto;
 import com.exemplo.produtosservice.repository.ProdutoRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.util.List;
-import java.util.Optional;
+import java.math.BigDecimal;
 
 /**
  * Regra de negocio de Produto. O controller nao fala direto com o repository,
@@ -20,11 +23,20 @@ public class ProdutoService {
         this.produtoRepository = produtoRepository;
     }
 
-    public List<Produto> listarTodos() {
+    public Flux<Produto> listarTodos() {
         return produtoRepository.findAll();
     }
 
-    public Optional<Produto> buscarPorId(Long id) {
+    public Mono<Produto> buscarPorId(Long id) {
         return produtoRepository.findById(id);
+    }
+
+    public Mono<Produto> criar(Produto produto) {
+        if (produto.getNome() == null || produto.getNome().isBlank()
+                || produto.getPreco() == null || produto.getPreco().compareTo(BigDecimal.ZERO) <= 0) {
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "nome e preco positivo sao obrigatorios"));
+        }
+        produto.setId(null);
+        return produtoRepository.save(produto);
     }
 }

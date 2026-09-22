@@ -1,0 +1,120 @@
+### 1. Acesso SEM autenticacao (esperado 401)
+GET http://localhost:8085/api/clientes
+
+### 2. Login com credenciais INVALIDAS (esperado 401)
+POST http://localhost:8085/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mariana.motta@al.infnet.edu.br",
+  "senha": "senha-errada"
+}
+
+### 3. Login com sucesso (esperado 200 + accessToken e refreshToken)
+POST http://localhost:8085/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mariana.motta@al.infnet.edu.br",
+  "senha": "admin123"
+}
+
+> {%
+    client.test("login ok", () => client.assert(response.status === 200));
+    client.global.set("accessToken", response.body.accessToken);
+    client.global.set("refreshToken", response.body.refreshToken);
+%}
+
+### 4. Rota protegida COM token (esperado 200)
+GET http://localhost:8085/api/clientes
+Authorization: Bearer {{accessToken}}
+
+### 5. Refresh: gera novo access token e novo refresh token (esperado 200)
+POST http://localhost:8085/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+> {%
+    client.test("refresh ok", () => client.assert(response.status === 200));
+    client.global.set("refreshAntigo", client.global.get("refreshToken"));
+    client.global.set("accessToken", response.body.accessToken);
+    client.global.set("refreshToken", response.body.refreshToken);
+%}
+
+### 6. Rota protegida com o NOVO access token (esperado 200)
+GET http://localhost:8085/api/produtos
+Authorization: Bearer {{accessToken}}
+
+### 7. Reutilizar o refresh token antigo, ja rotacionado (esperado 401)
+POST http://localhost:8085/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshAntigo}}"
+}
+
+### 8. Usar o refresh token como se fosse access token (esperado 401)
+GET http://localhost:8085/api/clientes
+Authorization: Bearer {{refreshToken}}
+
+### 9. Token adulterado (esperado 401)
+GET http://localhost:8085/api/clientes
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJoYWNrZXIifQ.assinatura-falsa
+
+### 10. Registrar venda: vendas-service consulta produtos-service via WebClient (esperado 201)
+POST http://localhost:8085/api/vendas
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "idProduto": 1,
+  "quantidade": 2
+}
+
+### 11. Venda com produto inexistente (esperado 404)
+POST http://localhost:8085/api/vendas
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "idProduto": 9999,
+  "quantidade": 1
+}
+
+### 12. Minhas vendas (esperado 200)
+GET http://localhost:8085/api/vendas/minhas
+Authorization: Bearer {{accessToken}}
+
+### 13. Cadastrar novo cliente (esperado 201)
+POST http://localhost:8085/api/clientes
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "nome": "Cliente Demonstracao",
+  "email": "cliente.demo@exemplo.com"
+}
+
+### 14. Cadastrar novo usuario (publico, esperado 201)
+POST http://localhost:8085/api/auth/register
+Content-Type: application/json
+
+{
+  "nome": "Usuario Novo",
+  "email": "usuario.novo@vendas.com",
+  "senha": "senha123"
+}
+
+### 15. Logout: revoga os refresh tokens do usuario (esperado 204)
+POST http://localhost:8085/api/auth/logout
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### 16. Acesso direto ao microsservico, sem passar pelo gateway e sem token (esperado 401)
+GET http://localhost:8083/api/clientes
