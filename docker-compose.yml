@@ -1,6 +1,5 @@
 services:
 
-  # --- Bancos de dados (um PostgreSQL separado por microsservico) ---
   postgres-auth:
     image: postgres:16-alpine
     container_name: postgres-auth
@@ -109,7 +108,6 @@ services:
     networks:
       - microservicos-net
 
-  # --- Servico de autenticacao (JWT + Spring Data JDBC) ---
   auth-service:
     build: ./auth-service
     container_name: auth-service
@@ -181,8 +179,6 @@ services:
       - config-server
     environment:
       - SPRING_CONFIG_IMPORT=configserver:http://config-server:8888
-      # ativa o profile "docker", que faz o config-server servir também
-      # vendas-service-docker.properties (sobrescreve a URL do Eureka)
       - SPRING_PROFILES_ACTIVE=docker
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
     ports:

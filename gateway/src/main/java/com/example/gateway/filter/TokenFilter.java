@@ -90,7 +90,6 @@ public class TokenFilter implements GlobalFilter, Ordered {
         return chain.filter(autenticado);
     }
 
-    // Responde 401 e encerra ali: setComplete fecha a resposta sem chamar o servico.
     private Mono<Void> recusar(ServerWebExchange exchange, String mensagem) {
         var resposta = exchange.getResponse();
         resposta.setStatusCode(HttpStatus.UNAUTHORIZED);
@@ -101,9 +100,6 @@ public class TokenFilter implements GlobalFilter, Ordered {
         return resposta.writeWith(Mono.just(buffer));
     }
 
-    // A ordem importa: -1 faz este filtro rodar ANTES do roteamento, enquanto
-    // o caminho ainda comeca com /auth-service. Depois do roteamento esse
-    // prefixo some, a lista LIVRES nao bate mais e o login fica bloqueado.
     @Override
     public int getOrder() {
         return -1;
