@@ -1,0 +1,11 @@
+﻿<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="3 - produtos-service" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.exemplo.produtosservice.ProdutosServiceApplication" />
+    <option name="VM_PARAMETERS" value="-Djdk.net.unixdomain.tmpdir=$PROJECT_DIR$/produtos-service/target" />
+    <module name="produtos-service" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
